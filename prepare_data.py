@@ -16,6 +16,20 @@ odour_names  = [name  for i, name  in enumerate(odour_names) if odour_groups[i] 
 # Keep all the groups which are not one of the bad groups
 odour_groups = [group for group in odour_groups if group not in bad_groups]
 
+print("Loading cell class information.")
+# groups: A 373 element vector indicating whether each cell is PN, L, or O.
+group_per_cell = list(robjects.r["group_per_cell"])
+# classes: Same as groups, but indicating the class of the cell.
+class_per_cell = list(robjects.r["class_per_cell"])
+
+classes = {pop:list({cl for i, cl in enumerate(class_per_cell) if group_per_cell[i] == pop}) for pop in ["PN","O", "L"]}
+for pop,cl in classes.items():
+    print("{:>4}: {:2d} classes: {}".format(pop,len(cl), "; ".join(cl)))
+
+# Write the classes information to disk
+print("Writing classes per population to disk.")
+pickle.dump(classes,  open(op.join(data_dir, "classes.p"),  "wb"))
+
 # Load the table of cells we're going to use
 print("Loading the physplit table.")
 db = pandas.read_csv(op.join(data_dir, "physplit.csv"))
@@ -65,4 +79,4 @@ print("Writing the database of valid cells to disk.")
 db_valid = db.loc[db["cell"].isin(valid_cells)]
 db_valid.to_csv(op.join(data_dir, "db.csv"), index=False)
 
-print("ALLDONE")
+print("ALLDONE.")
