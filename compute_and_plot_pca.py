@@ -5,8 +5,11 @@ import pandas as pd
 from scipy import stats
 import scipy.optimize as opt
 from sklearn.decomposition import PCA
+import matplotlib as mpl
+mpl.use("Agg") # So we don't actually need an X display to plot
 from matplotlib import pyplot as plt
 from matplotlib import cm
+
 from copy import deepcopy
 
 

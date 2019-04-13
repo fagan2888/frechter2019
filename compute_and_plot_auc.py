@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 from sklearn import metrics as metrics
 import aesthetics
+import matplotlib as mpl
+mpl.use("Agg") # So we don't actually need an X display to plot
 from matplotlib import pyplot as plt
 from scipy import stats
 from importlib import reload
