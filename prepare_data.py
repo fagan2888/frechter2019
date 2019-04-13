@@ -8,13 +8,56 @@ data_dir = "./input_data"
 
 print("Loading odour names and groups.")
 robjects.r['load'](op.join(data_dir, "stats_by_class_mat36_python.RData"))
+# classes is the set of classes used in stats_by_class_mat36 (the row names)
+classes = list(robjects.r["classes"])
+bucket_classes = ["30","62", "67", "80", "103", "105", "42", "66", "73"] 
+# We're using a prespecified list of classes that already takes the bucket classes
+# into account. So make sure no bucket classes show up here.
+if any([r in bucket_classes for r in classes]):
+    raise Exception("Some bucket classes were found!")
+print("Verified that no bucket classes were found.")
+
+# groups: A 373 element vector indicating whether each cell is PN, L, or O.
+group_per_cell = list(robjects.r["group_per_cell"])
+# classes: Same as groups, but indicating the class of the cell.
+class_per_cell = list(robjects.r["class_per_cell"])
+
+pn_classes = [cl for i, cl in enumerate(class_per_cell) if group_per_cell[i] == "PN"]
+on_classes = [cl for i, cl in enumerate(class_per_cell) if group_per_cell[i] == "O"]
+ln_classes = [cl for i, cl in enumerate(class_per_cell) if group_per_cell[i] == "L"]
+
+
+ind_pn = [i for i, cl in enumerate(classes) if cl in pn_classes]
+ind_on = [i for i, cl in enumerate(classes) if cl in on_classes]
+ind_ln = [i for i, cl in enumerate(classes) if cl in ln_classes]
+
+names_pn = [classes[i] for i in ind_pn]
+names_on = [classes[i] for i in ind_on]
+names_ln = [classes[i] for i in ind_ln]
+
+stats_by_class = np.array(robjects.r["stats_by_class_mat36"])
+
+Xpn = stats_by_class[ind_pn,:]
+Xon = stats_by_class[ind_on,:]
+Xln = stats_by_class[ind_ln,:]
+
 odour_names  = list(robjects.r["odour_names"])
 odour_groups = list(robjects.r["odour_groups"])
 bad_groups   = ['Mix','Blank','min_acid']
+good_odour_inds = [i for i, g in enumerate(odour_groups) if g not in bad_groups]
 # Keep all odours whose group isn't one of the bad groups
-odour_names  = [name  for i, name  in enumerate(odour_names) if odour_groups[i] not in bad_groups]
+odour_names  =  [odour_names[i]  for i in good_odour_inds]
 # Keep all the groups which are not one of the bad groups
-odour_groups = [group for group in odour_groups if group not in bad_groups]
+odour_groups =  [odour_groups[i] for i in good_odour_inds]
+odours = dict(zip(odour_names, odour_groups))
+
+Xpn = Xpn[:,[i for i in range(Xpn.shape[1]) if i//7 in good_odour_inds]]
+Xon = Xon[:,[i for i in range(Xon.shape[1]) if i//7 in good_odour_inds]]
+Xln = Xln[:,[i for i in range(Xln.shape[1]) if i//7 in good_odour_inds]]
+
+pops                    = ["PN", "LN", "ON"]
+class_names_per_pop     = {"PN":names_pn, "LN":names_ln,"ON":names_on}
+stats_by_class_per_pop  = {"PN":Xpn, "ON":Xon, "LN":Xln}
 
 print("Loading cell class information.")
 # groups: A 373 element vector indicating whether each cell is PN, L, or O.
@@ -22,13 +65,13 @@ group_per_cell = list(robjects.r["group_per_cell"])
 # classes: Same as groups, but indicating the class of the cell.
 class_per_cell = list(robjects.r["class_per_cell"])
 
-classes = {pop:list({cl for i, cl in enumerate(class_per_cell) if group_per_cell[i] == pop}) for pop in ["PN","O", "L"]}
-for pop,cl in classes.items():
+classes_per_pop = {pop:list({cl for i, cl in enumerate(class_per_cell) if group_per_cell[i] == pop}) for pop in ["PN","O", "L"]}
+for pop,cl in classes_per_pop.items():
     print("{:>4}: {:2d} classes: {}".format(pop,len(cl), "; ".join(cl)))
 
 # Write the classes information to disk
 print("Writing classes per population to disk.")
-pickle.dump(classes,  open(op.join(data_dir, "classes.p"),  "wb"))
+pickle.dump(classes_per_pop,  open(op.join(data_dir, "classes_per_pop.p"),  "wb"))
 
 # Load the table of cells we're going to use
 print("Loading the physplit table.")
