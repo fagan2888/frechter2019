@@ -184,13 +184,13 @@ odour_groups <-
     PEtAm = "phenyl"
   )
 odour_names    <- names(odour_groups)
-classes    <- rownames(stats_by_class_mat36)
+class_per_row <- rownames(stats_by_class_mat36)
 group_per_cell <- physplit$Group
 class_per_cell <- physplit$new_class
 
 output.file = paste(output.folder, "stats_by_class_mat36_python.RData", sep="/")
 print(paste("Saving stats_by_class_mat36 and associated properties to", output.file))
-save(classes, group_per_cell, class_per_cell, odour_names, odour_groups, stats_by_class_mat36, file=output.file)
+save(class_per_row, group_per_cell, class_per_cell, odour_names, odour_groups, stats_by_class_mat36, file=output.file)
 print("Done.")
 
 ## 2. Write the physplit table to file
