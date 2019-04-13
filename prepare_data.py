@@ -6,44 +6,38 @@ import rpy2.robjects as robjects
 
 data_dir = "./input_data"
 
-print("Loading odour names and groups.")
+print("Loading stats_by_class_mat36.")
 robjects.r['load'](op.join(data_dir, "stats_by_class_mat36_python.RData"))
-# classes is the set of classes used in stats_by_class_mat36 (the row names)
-classes = list(robjects.r["classes"])
-bucket_classes = ["30","62", "67", "80", "103", "105", "42", "66", "73"] 
-# We're using a prespecified list of classes that already takes the bucket classes
-# into account. So make sure no bucket classes show up here.
-if any([r in bucket_classes for r in classes]):
-    raise Exception("Some bucket classes were found!")
-print("Verified that no bucket classes were found.")
+
+# stats_by_class_mat36 is a matrix where each row
+# contains the data for one class. The data itself
+# consists of 7 binned mean spike counts for 36 odours.
+# The next chunk of code extracts subsets of this matrix
+# corresponding to the data from each population (PN, L, O)
+# and the subset of odours that we use in the analysis.
+
+# Get the class label for each row
+class_per_row  = list(robjects.r["class_per_row"])
 
 # groups: A 373 element vector indicating whether each cell is PN, L, or O.
 group_per_cell = list(robjects.r["group_per_cell"])
+pops           = set(group_per_cell) # PN, O, L
+
 # classes: Same as groups, but indicating the class of the cell.
 class_per_cell = list(robjects.r["class_per_cell"])
 
-pn_classes = [cl for i, cl in enumerate(class_per_cell) if group_per_cell[i] == "PN"]
-on_classes = [cl for i, cl in enumerate(class_per_cell) if group_per_cell[i] == "O"]
-ln_classes = [cl for i, cl in enumerate(class_per_cell) if group_per_cell[i] == "L"]
+# Create a list of all the classes for each population
+classes_per_pop  = {pop:[cl for i, cl in enumerate(class_per_cell) if group_per_cell[i] == pop]   for pop in pops}
 
+# Determine the rows for each population 
+rows_per_pop     = {pop:[ i for i, cl in enumerate(class_per_row) if cl in classes_per_pop[pop]] for pop in pops}
+rownames_per_pop = {pop:[cl for i, cl in enumerate(class_per_row) if cl in classes_per_pop[pop]] for pop in pops}
 
-ind_pn = [i for i, cl in enumerate(classes) if cl in pn_classes]
-ind_on = [i for i, cl in enumerate(classes) if cl in on_classes]
-ind_ln = [i for i, cl in enumerate(classes) if cl in ln_classes]
-
-names_pn = [classes[i] for i in ind_pn]
-names_on = [classes[i] for i in ind_on]
-names_ln = [classes[i] for i in ind_ln]
-
-stats_by_class = np.array(robjects.r["stats_by_class_mat36"])
-
-Xpn = stats_by_class[ind_pn,:]
-Xon = stats_by_class[ind_on,:]
-Xln = stats_by_class[ind_ln,:]
-
+# Get the list of odour names and groups and use only a prescribed subset.
 odour_names  = list(robjects.r["odour_names"])
 odour_groups = list(robjects.r["odour_groups"])
 bad_groups   = ['Mix','Blank','min_acid']
+# Get the indices of the valid odours. We'll need this to subset the data later
 good_odour_inds = [i for i, g in enumerate(odour_groups) if g not in bad_groups]
 # Keep all odours whose group isn't one of the bad groups
 odour_names  =  [odour_names[i]  for i in good_odour_inds]
@@ -51,13 +45,21 @@ odour_names  =  [odour_names[i]  for i in good_odour_inds]
 odour_groups =  [odour_groups[i] for i in good_odour_inds]
 odours = dict(zip(odour_names, odour_groups))
 
-Xpn = Xpn[:,[i for i in range(Xpn.shape[1]) if i//7 in good_odour_inds]]
-Xon = Xon[:,[i for i in range(Xon.shape[1]) if i//7 in good_odour_inds]]
-Xln = Xln[:,[i for i in range(Xln.shape[1]) if i//7 in good_odour_inds]]
+# Finally, extract the stats data...
+stats_by_class = np.array(robjects.r["stats_by_class_mat36"])
+# ... subset the rows for each population...
+stats_by_class_per_pop = {pop:stats_by_class[rows_per_pop[pop], :] for pop in pops}
+# ... and subset the columns to use the odours we're interested in.
+stats_by_class_per_pop = {pop:X[:, [i for i in range(X.shape[1]) if i//7 in good_odour_inds]] for pop, X in stats_by_class_per_pop.items()}
 
-pops                    = ["PN", "LN", "ON"]
-class_names_per_pop     = {"PN":names_pn, "LN":names_ln,"ON":names_on}
-stats_by_class_per_pop  = {"PN":Xpn, "ON":Xon, "LN":Xln}
+# Save the data to file
+data = {"odours":odours,
+        "rownames_per_pop":rownames_per_pop,
+        "stats_by_class_per_pop":stats_by_class_per_pop}
+output_file = op.join(data_dir, "stats_by_class_subset.p")
+print("Saving subseted stats_by_class data to {}".format(output_file))
+pickle.dump(data, open(output_file, "wb"))
+    
 
 print("Loading cell class information.")
 # groups: A 373 element vector indicating whether each cell is PN, L, or O.
@@ -70,8 +72,9 @@ for pop,cl in classes_per_pop.items():
     print("{:>4}: {:2d} classes: {}".format(pop,len(cl), "; ".join(cl)))
 
 # Write the classes information to disk
-print("Writing classes per population to disk.")
-pickle.dump(classes_per_pop,  open(op.join(data_dir, "classes_per_pop.p"),  "wb"))
+output_file = op.join(data_dir, "classes_per_pop.p")
+print("Writing classes per population to {}".format(output_file))
+pickle.dump(classes_per_pop, open(output_file,  "wb"))
 
 # Load the table of cells we're going to use
 print("Loading the physplit table.")
@@ -83,6 +86,7 @@ count_data = pandas.read_csv(data_file)
 # The count data is for more cells and odours than we need.
 # So subset the data for the odours we need...
 count_data = count_data.loc[count_data['odour'].isin(odour_names)]
+
 # ...and for the cells we need.
 count_data = count_data.loc[count_data["cell"].isin(set(db["cell"].values))] 
 cells = set(count_data["cell"])
@@ -111,15 +115,18 @@ btoc_odours = sorted(list(set(count_data_valid["odour"])))
 btoc_groups = [odour_groups[odour_names.index(odour)] for odour in btoc_odours]
 
 # Write the btoc data to disk
-print("Writing spike counts data to disk.")
-np.save(op.join(data_dir,"btoc"), btoc)
-pickle.dump(btoc_cells,  open(op.join(data_dir, "btoc_cells.p"),  "wb"))
-pickle.dump(btoc_groups, open(op.join(data_dir, "btoc_groups.p"), "wb"))
-pickle.dump(btoc_odours, open(op.join(data_dir, "btoc_odours.p"), "wb"))
+output_file = op.join(data_dir,"btoc")
+print("Writing spike counts data to {}.npy".format(output_file))
+np.save(output_file, btoc)
+
+output_file = op.join(data_dir, "btoc.p")
+print("Writing spike count labels data to {}".format(output_file))
+pickle.dump({"cells":btoc_cells, "groups":btoc_groups, "odours":btoc_odours}, open(output_file, "wb"))
 
 # Write the list of valid cells to disk
-print("Writing the database of valid cells to disk.")
+output_file = op.join(data_dir, "db.csv")
+print("Writing the database of valid cells to {}".format(output_file))
 db_valid = db.loc[db["cell"].isin(valid_cells)]
-db_valid.to_csv(op.join(data_dir, "db.csv"), index=False)
+db_valid.to_csv(output_file, index=False)
 
 print("ALLDONE.")
