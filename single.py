@@ -21,8 +21,8 @@ args = parser.parse_args()
 
 # 1. First we'll read out and process the input arguments.
 
-seed= args.seed; print("seed: {}".format(seed))
-pop = args.pop;  print(" pop: {}".format(pop))
+seed      = args.seed; print("seed: {}".format(seed))
+which_pop = args.pop;  print(" pop: {}".format(which_pop))
 
 n_classes = args.n_classes; print("n_classes: {}".format(n_classes))
 if n_classes <= 0:
@@ -91,8 +91,8 @@ with TimedBlock("{}".format(name.upper())):
         print("Loaded db.csv")
 
     # Make sure the number of classes we asked for is valid.    
-    if n_classes > len(classes_per_pop[pop]):
-        raise ValueError("n_classes {} was larger than max allowed {} for pop {}.".format(n_classes, len(classes_per_pop[pop]), pop))
+    if n_classes > len(classes_per_pop[which_pop]):
+        raise ValueError("n_classes {} was larger than max allowed {} for pop {}.".format(n_classes, len(classes_per_pop[which_pop]), which_pop))
     elif n_classes <= 0:
         raise ValueError("n_classes must be > 0, was {}.".format(n_classes))
  
@@ -139,9 +139,9 @@ with TimedBlock("{}".format(name.upper())):
     C_vals = [10.**i for i in np.arange(-8,2,1)]
 
     # Pick the classes that we're going to use.
-    which_classes = np.random.choice(classes_per_pop[pop], n_classes, replace=False)
+    which_classes = np.random.choice(classes_per_pop[which_pop], n_classes, replace=False)
     # Pick the cells we're going to use
-    which_cells   = [np.random.choice(db[(db["group"] == pop) & (db["class"] == cl)]["cell"]) for cl in which_classes]
+    which_cells   = [np.random.choice(db[(db["group"] == which_pop) & (db["class"] == cl)]["cell"]) for cl in which_classes]
 
     print("which_classes: {}".format("; ".join(which_classes)))
     print("which_cells:   {}".format("; ".join(which_cells)))
@@ -209,7 +209,7 @@ with TimedBlock("{}".format(name.upper())):
             "shuffle":shuffle,
             "wnd_size":wnd_size,
             "pool_baseline":pool_baseline,
-            "pop":pop,
+            "pop":which_pop,
             "n_classes":n_classes,
             "label":label,
             "which_classes":which_classes,
