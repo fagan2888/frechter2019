@@ -6,3 +6,9 @@
 *.p
 
 *.npy
+
+*.sh
+
+seed*.pdf
+
+seed*.txt
