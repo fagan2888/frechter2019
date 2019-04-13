@@ -14,5 +14,3 @@ seed*.pdf
 seed*.txt
 
 __pycache__
-
-*.tar.gz
