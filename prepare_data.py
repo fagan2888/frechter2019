@@ -43,7 +43,6 @@ good_odour_inds = [i for i, g in enumerate(odour_groups) if g not in bad_groups]
 odour_names  =  [odour_names[i]  for i in good_odour_inds]
 # Keep all the groups which are not one of the bad groups
 odour_groups =  [odour_groups[i] for i in good_odour_inds]
-odours = dict(zip(odour_names, odour_groups))
 
 # Finally, extract the stats data...
 stats_by_class = np.array(robjects.r["stats_by_class_mat36"])
@@ -53,7 +52,8 @@ stats_by_class_per_pop = {pop:stats_by_class[rows_per_pop[pop], :] for pop in po
 stats_by_class_per_pop = {pop:X[:, [i for i in range(X.shape[1]) if i//7 in good_odour_inds]] for pop, X in stats_by_class_per_pop.items()}
 
 # Save the data to file
-data = {"odours":odours,
+data = {"odour_names":odour_names,
+        "odour_groups":odour_groups,
         "rownames_per_pop":rownames_per_pop,
         "stats_by_class_per_pop":stats_by_class_per_pop}
 output_file = op.join(data_dir, "stats_by_class_subset.p")
