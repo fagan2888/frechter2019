@@ -16,3 +16,5 @@ seed*.txt
 __pycache__
 
 input_data/
+
+*.out
