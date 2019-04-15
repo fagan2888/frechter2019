@@ -42,7 +42,7 @@ See `single.py` for the meaining of the input paramters. Note that `single.py` u
    - `seed(...).pdf`: The accuracy time course data in the csv file plotted using gnuplot.
    - `seed(...)_summary.txt`: A plain text file listing the parameters of the run as well as the peak accuracy achieved.   
    - `seed(...)_summary.p`: The summary data as in `...summary.txt` but stored as pickled python dictionary.
-   - `seed(...)_acc.npy`: A `num_C_values x num_time_bins x num_trials` numpy array containing the decoding accuracy for each time bin, trial, and value of C.   
+   - `seed(...)_acc.npy`: A `num_C_values x num_time_bins x num_cross_validation_trials` numpy array containing the decoding accuracy for each time bin, value of C, and cross validation trial.   
 
 5) The results stored in the `runs` folder are analyzed by `process_results.py` by running 
 ```
