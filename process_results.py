@@ -7,8 +7,10 @@ res_root = args.res_root
 if not op.isdir(res_root):
     raise ValueError("{} is not a directory.".format(res_root))
 
+# The folder containin the input data for the simulations.
 input_dir = "./input_data"
-output_dir= "./output"
+# The folders where the output figures are going to be written
+output_dir= "./output" 
 
 import os, sys
 import pandas as pd
@@ -19,8 +21,8 @@ from datetime import datetime
 from matplotlib import pyplot as plt
 from matplotlib import cm
 from collections import namedtuple
-import pdb
 
+# A context manager to help label and time blocks of code.
 class TimedBlock:
     def __init__(self, name):
         self.name = name
@@ -34,35 +36,42 @@ class TimedBlock:
         print("{}: Finished {} in {:.2f} seconds.".format(datetime.now(), self.name, time.time() - self.start_time))
 
 
-I = lambda x: x
-ARR2STR = lambda x: ";".join(x)
-keep_fields = {"y_true":I, "seed":I, "pool_baseline":I, "wnd_size":I, "pop":I, "shuffle":I, "label":I, "n_classes":I, "which_classes":ARR2STR, "which_cells":ARR2STR}
-subdict = lambda d: {f:keep_fields[f](d[f]) for f in d if f in keep_fields}
-
 with TimedBlock("Processing results from {}".format(res_root)):
 
+    # Load the basic odour information
     with TimedBlock("loading odour and group definitions"):
         btoc = pickle.load(open(op.join(input_dir, "btoc.p"), "rb"))
         btoc_groups = btoc["groups"]
         btoc_odours = btoc["odours"]
+
+    # 1. LOAD THE RESULTS SUMMARIES FOR EACH SEED INTO A DATAFRAME.
     
+    # If we've previously created the data frame, load it.
     df_file = op.join(res_root, "all_acc.df.p.bz2")
     if op.isfile(df_file):
         print("Found dataframe containing accuracy scores at {}".format(df_file))
         with TimedBlock("loading from {}".format(df_file)):
             df = pd.read_pickle(df_file)
     else:
+        # Otherwise, create it anew.
         print("Did not find dataframe containing accuracy scores at {}".format(df_file))
         print("Creating.")
         records = []
         n_proc = 0
+
+        # The following few lines are for extracting fields from the results summary for each run
+        I           = lambda x: x
+        ARR2STR     = lambda x: ";".join(x)
+        keep_fields = {"y_true":I, "seed":I, "pool_baseline":I, "wnd_size":I, "pop":I, "shuffle":I, "label":I, "n_classes":I, "which_classes":ARR2STR, "which_cells":ARR2STR}
+        subdict     = lambda d: {f:keep_fields[f](d[f]) for f in d if f in keep_fields}
+        
         with TimedBlock("reading accuracy files"):
             for root, dirs, files in os.walk(res_root):
                 for f in files:
                     if f.endswith("_summary.p"):
                         with open(op.join(root,f), "rb") as in_file:
                             summary = pickle.load(in_file)
-                            acc_file = "seed{}{}_acc.npy".format(summary["seed"], "shuf" if summary["shuffle"] else "orig")
+                            acc_file      = "seed{}{}_acc.npy".format(summary["seed"], "shuf" if summary["shuffle"] else "orig")
                             acc_full_file = op.join(root, acc_file)
                             if not op.exists(op.join(root, acc_file)):
                                 print("Could not find accuracy file {} for summary file {}, skipping.".format(acc_full_file, f))
@@ -96,7 +105,7 @@ with TimedBlock("Processing results from {}".format(res_root)):
         print("Done.")
     
 
-    # split the indices into two groups
+    # 2. GROUP THE DATA BY CONDITION, BIN, ETC. AND SPLIT INTO HALVES
     with TimedBlock("determining groups"):
         d = df.groupby(["pool_baseline", "wnd_size", "C","bin","pop","label","n_classes","shuffle"])
         k = d.groups.keys()
@@ -126,7 +135,7 @@ with TimedBlock("Processing results from {}".format(res_root)):
 
     print("Halve sizes: {}".format(len(df0), len(df1)))
 
-    # Compute the best C values
+    # 3. USE THE FIRST HALF OF THE DATA TO FIND THE BEST C VALUE FOR EACH CONDITION
     with TimedBlock("averaging performance across seeds"):
         m1 = df0.groupby(["pool_baseline", "wnd_size", "C", "bin", "pop", "label", "n_classes", "shuffle"], as_index = False).mean().drop(["seed"], axis=1)
     
@@ -139,7 +148,7 @@ with TimedBlock("Processing results from {}".format(res_root)):
     
     print(df_best_C.head())
 
-    # subset the second have to use the best C values
+    # 4. SUBSET THE SECOND HALF OF THE DATA TO USE THE BEST C VALUE FOR EACH CONDITION
     with TimedBlock("subset second half to use best C"):
         grouping = ["pool_baseline", "wnd_size", "pop", "label", "n_classes", "bin", "shuffle"] 
         g_best_C = df_best_C.groupby(grouping)
@@ -154,9 +163,6 @@ with TimedBlock("Processing results from {}".format(res_root)):
             df_sub = pd.concat(subs,axis=0)
             print("{} rows. ".format(len(df_sub)))
 
-    # Each of the seeds should now map to one C value per bin.
-    # We should then be able to plot a trace for each seed
-    # We can then maximize over bins per each trace
     def subset_per_seed(pool_baseline, wnd_size, pop, label, n_classes, shuffle, field="acc"):
         # Returns a bins x (# seeds) matrix containing the values for each bin using the optimized value of C.
         dd = df_sub[(df_sub.pool_baseline == pool_baseline) & (df_sub.wnd_size == wnd_size) & (df_sub["pop"]==pop) & (df_sub.label==label) & (df_sub.n_classes==n_classes) & (df_sub.shuffle==shuffle)]    
@@ -173,9 +179,9 @@ with TimedBlock("Processing results from {}".format(res_root)):
     # ##        ##       ##     ##    ##    
     # ##        ########  #######     ##
     
-    cell_colours = {"PN":"red", "L":"limegreen", "O":"dodgerblue"}
+    cell_colours       = {"PN":"red", "L":"limegreen", "O":"dodgerblue"}
     cell_light_colours = {"PN":"mistyrose", "L":"honeydew", "O":"lightcyan"}
-    classes_per_pop = pickle.load(open(op.join(input_dir, "classes_per_pop.p"), "rb"))
+    classes_per_pop    = pickle.load(open(op.join(input_dir, "classes_per_pop.p"), "rb"))
 
     print("Classes per population:")
     for pop, cl in classes_per_pop.items():
@@ -268,7 +274,7 @@ with TimedBlock("Processing results from {}".format(res_root)):
                 n_classes = sorted(list(set(df_sub[df_sub["pop"]==pop]["n_classes"].values)))
                 data = [np.max(subset_per_seed(pool_baseline, wnd_size, pop, label, n, False)[0], axis=0) for n in n_classes]
                 acc_mean = np.array([np.mean(d) for d in data])
-                acc_std  = np.array([np.std(d)  for d in data])#/np.sqrt(len(data))
+                acc_std  = np.array([np.std(d)  for d in data])
                 lines.append(plt.plot(n_classes, acc_mean, "o-", color = cell_colours[pop], label=pop, linewidth=4, markersize=10)[0])
                 line_labels.append(pop)
                 plt.fill_between(n_classes, acc_mean - acc_std, acc_mean + acc_std, alpha=0.25, facecolor = cell_colours[pop], label=pop)
@@ -276,7 +282,7 @@ with TimedBlock("Processing results from {}".format(res_root)):
                 if use_shuffle:
                     data = [np.max(subset_per_seed(pool_baseline, wnd_size, pop, label, n, True)[0], axis=0) for n in n_classes]
                     acc_mean = np.array([np.mean(d) for d in data])
-                    acc_std  = np.array([np.std(d)  for d in data])#/np.sqrt(len(data))
+                    acc_std  = np.array([np.std(d)  for d in data])
                     lines.append(plt.plot(n_classes, acc_mean, "o-", color = cell_colours[pop], label=pop, linewidth=2, markersize=5)[0])
                     line_labels.append(pop + " (shuf)")
                     plt.fill_between(n_classes, acc_mean - acc_std, acc_mean + acc_std, alpha=0.25, facecolor = cell_colours[pop], label=pop)
