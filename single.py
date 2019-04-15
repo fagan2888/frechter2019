@@ -225,7 +225,7 @@ with TimedBlock("{}".format(name.upper())):
         for item in summary:
             print("{:>16}: {}".format(item, summary[item]))
    
-        with open("{}.summary.txt".format(name), "w") as f_out:
+        with open("{}_summary.txt".format(name), "w") as f_out:
             for k in summary:
                 f_out.write("{}: {}\n".format(k, summary[k]))
         print("Wrote summary to {}.summary.txt.".format(name) )
