@@ -16,7 +16,7 @@ The data required for the analyses can be decompressed from `input_data.tar.gz` 
 3. Running `prepare_data.R` from the top level folder.
 4. Running `prepare_data.py` from the top level folder.
 ## AUC Analysis
-The AUC analysis whose results are shown in **Figures 9B and C** can be performed by running `compute_and_plot_auc.py`. This will generate the box and whisker plot of Figure 9B, and a csv file of AUC values that can be used to plot Figure 9C. The plot and csv file are written to the `output` folder.
+The AUC analysis whose results are shown in **Figures 9B and C** can be performed by running `compute_and_plot_auc.py`. This will generate the box and whisker plot of **Figure 9B**, and a csv file of AUC values that can be used to plot **Figure 9C**. The plot and csv file are written to the `output` folder.
 ## PCA Analysis
 The PCA plots on the raw data shown in **Figure 9A** and for the divisively normalized data shown in **Figure 9D** are performed in `compute_and_plot_pca.py`. The plot is written to the `output` folder.
 ## Identity and Category Decoding
